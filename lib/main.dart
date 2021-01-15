@@ -22,9 +22,9 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       home: HomePage(),
       routes: <String, WidgetBuilder>{
-        '/home': (BuildContext context) => new HomePage(),
-        '/provider': (BuildContext context) => new ProviderPractice(),
-        '/riverpod': (BuildContext context) => new RiverpodPractice()
+        '/home': (BuildContext context) => HomePage(),
+        '/provider': (BuildContext context) => ProviderPractice(),
+        '/riverpod': (BuildContext context) => RiverpodPractice()
       },
     );
   }
