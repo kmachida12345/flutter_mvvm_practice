@@ -11,6 +11,12 @@ final counterProvider =
 
 final textProvider = ChangeNotifierProvider((ref) => _TextProvider());
 
+final firebaseProvider =
+    ChangeNotifierProvider((ref) => _FirebaseFirestoreProvider());
+
+// final TextEditingController _emailController = TextEditingController();
+// final TextEditingController _passwordController = TextEditingController();
+
 // Extend ConsumerWidget instead of StatelessWidget, which is exposed by Riverpod
 class RiverpodPractice extends ConsumerWidget {
   final Future<FirebaseApp> _initialization = Firebase.initializeApp();
@@ -28,7 +34,6 @@ class RiverpodPractice extends ConsumerWidget {
         );
       },
     );
-
   }
 }
 
@@ -71,14 +76,27 @@ class _TextProvider extends ChangeNotifier {
   set password(value) {
     _password = value;
   }
+}
 
+class _FirebaseFirestoreProvider extends ChangeNotifier {
+  DocumentReference _reference;
+
+  DocumentReference get reference => _reference;
+
+  set reference(value) {
+    _reference = value;
+  }
 }
 
 class TestList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance.collection('testdesu').snapshots(),
+      stream: context
+          .read(firebaseProvider)
+          .reference
+          .collection('data')
+          .snapshots(),
       builder: (BuildContext context, AsyncSnapshot<QuerySnapshot> snapshot) {
         if (snapshot.hasError) return new Text('Error: ${snapshot.error}');
         switch (snapshot.connectionState) {
@@ -111,6 +129,11 @@ class AuthScreen extends StatelessWidget {
         }
 
         if (snapshot.hasData) {
+          context.read(firebaseProvider).reference = FirebaseFirestore.instance
+              .collection('version')
+              .doc('1')
+              .collection('user')
+              .doc(FirebaseAuth.instance.currentUser.uid);
           return FugaScreen();
         }
         return HogeScreen();
@@ -122,66 +145,82 @@ class AuthScreen extends StatelessWidget {
 class HogeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    Future<void> trySubmit() async {
+    Future<void> register() async {
       final auth = FirebaseAuth.instance;
-      debugPrint('hoge email=${context.read(textProvider).email}, pass=${context.read(textProvider).password}');
-      // if (auth.isSignInWithEmailLink('hoge')) {
-      //   final result = await auth.signInWithEmailAndPassword(email: context
-      //       .read(textProvider)
-      //       .email, password: context
-      //       .read(textProvider)
-      //       .password);
-      //   print('hoge${result.user.uid}');
-      // } else {
-        final result = await auth.createUserWithEmailAndPassword(email: context
-            .read(textProvider)
-            .email, password: context
-            .read(textProvider)
-            .password);
-        print('hoge${result.user.uid}');
-      // }
+      debugPrint(
+          'hoge email=${context.read(textProvider).email}, pass=${context.read(textProvider).password}');
+      final result = await auth.createUserWithEmailAndPassword(
+          email: context.read(textProvider).email,
+          password: context.read(textProvider).password);
+      print('hoge${result.user.uid}');
+
+      Map<String, String> initialData = {'email': result.user.email};
+      FirebaseFirestore.instance
+          .collection('version')
+          .doc('1')
+          .collection('user')
+          .doc(result.user.uid)
+          .set(initialData);
     }
+
+    Future<void> login() async {
+      final auth = FirebaseAuth.instance;
+      final result = await auth.signInWithEmailAndPassword(
+          email: context.read(textProvider).email,
+          password: context.read(textProvider).password);
+      print('hoge${result.user.uid}');
+      context.read(firebaseProvider).reference = FirebaseFirestore.instance
+          .collection('version')
+          .doc('1')
+          .collection('user')
+          .doc(result.user.uid);
+    }
+
     return Scaffold(
-      appBar: AppBar(title: Text('auth'),),
+      appBar: AppBar(
+        title: Text('auth'),
+      ),
       body: Center(
           child: Column(
-            children: [
-              Text('hoge'),
-              TextFormField(
-                decoration: InputDecoration(labelText: 'email'),
-                onSaved: (newValue) {
-                  debugPrint('hoge newValue=$newValue');
-                },
-                onChanged: (value) {
-                  context
-                      .read(textProvider)
-                      .email = value;
-                  debugPrint('hoge email newvalue=$value');
-                },
-              ),
-              TextFormField(
-                decoration: InputDecoration(labelText: 'password'),
-                obscureText: true,
-                onSaved: (newValue) {
-                  debugPrint('hoge newValue=$newValue');
-                  context
-                      .read(textProvider)
-                      .password = newValue;
-                },
-                onChanged: (value) {
-                  debugPrint('hoge pass newvalue=$value');
-                  context
-                      .read(textProvider)
-                      .password = value;
-                },
-              ),
-              RaisedButton(onPressed: () {
-                trySubmit();
-              },
-              )
-            ],
-          )
-      ),
+        children: [
+          Text('hoge'),
+          TextFormField(
+            decoration: InputDecoration(labelText: 'email'),
+            // controller: _emailController,
+            onSaved: (newValue) {
+              debugPrint('hoge newValue=$newValue');
+            },
+            onChanged: (value) {
+              context.read(textProvider).email = value;
+              debugPrint('hoge email newvalue=$value');
+            },
+          ),
+          TextFormField(
+            decoration: InputDecoration(labelText: 'password'),
+            obscureText: true,
+            // controller: _passwordController,
+            onSaved: (newValue) {
+              debugPrint('hoge newValue=$newValue');
+              context.read(textProvider).password = newValue;
+            },
+            onChanged: (value) {
+              debugPrint('hoge pass newvalue=$value');
+              context.read(textProvider).password = value;
+            },
+          ),
+          RaisedButton(
+            child: Text('register'),
+            onPressed: () {
+              register();
+            },
+          ),
+          RaisedButton(
+              child: Text('login'),
+              onPressed: () {
+                login();
+              })
+        ],
+      )),
     );
   }
 }
@@ -191,16 +230,14 @@ class FugaScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     Future<void> addUser() {
       CollectionReference users =
-      FirebaseFirestore.instance.collection('testdesu');
+          context.read(firebaseProvider).reference.collection('data');
 
       return users
           .add({
-        'hoge': 'hoge ${context
-            .read(counterProvider)
-            .counter}',
-        'fuga': 'fuga',
-        'age': 1
-      })
+            'hoge': 'hoge ${context.read(counterProvider).counter}',
+            'fuga': 'fuga',
+            'age': 1
+          })
           .then((value) => print('hoge user added.'))
           .catchError((error) => print('hoge failed. $error'));
     }
@@ -219,11 +256,19 @@ class FugaScreen extends StatelessWidget {
             textColor: Colors.white,
             onPressed: addUser,
           ),
-          Expanded(child: TestList())
+          Expanded(child: TestList()),
+          RaisedButton(
+              child: Text('logout'),
+              onPressed: () {
+                _logout();
+              })
         ],
       ),
       floatingActionButton: _RiverpodPracticePageFab(),
     );
   }
 
+  void _logout() async {
+    await FirebaseAuth.instance.signOut();
+  }
 }
