@@ -101,14 +101,34 @@ class TestList extends StatelessWidget {
         if (snapshot.hasError) return new Text('Error: ${snapshot.error}');
         switch (snapshot.connectionState) {
           case ConnectionState.waiting:
-            return new Text('Loading...');
+            return Center(child: CircularProgressIndicator());
           default:
             return new ListView(
-              // shrinkWrap: true,
               children: snapshot.data.docs.map((DocumentSnapshot document) {
                 return new ListTile(
+                  trailing: PopupMenuButton(
+                    onSelected: (value) {
+                      document.reference.delete();
+                      debugPrint('hogeeeee');
+                    },
+                    itemBuilder: (context) {
+                      return [
+                        PopupMenuItem(
+                          child: Text('hoge'),
+                          value: 'hoge',
+                        )
+                      ];
+                    },
+                  ),
                   title: new Text(document['fuga']),
                   subtitle: new Text(document['hoge'].toString()),
+                  onLongPress: () {
+                    debugPrint(
+                        'hoge long pressed ${document['hoge'].toString()}');
+                  },
+                  onTap: () {
+                    debugPrint('hoge tapped ${document['hoge'].toString()}');
+                  },
                 );
               }).toList(),
             );
