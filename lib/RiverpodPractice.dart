@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -13,6 +14,8 @@ final textProvider = ChangeNotifierProvider((ref) => _TextProvider());
 
 final firebaseProvider =
     ChangeNotifierProvider((ref) => _FirebaseFirestoreProvider());
+FirebaseMessaging messaging = FirebaseMessaging.instance;
+
 
 // final TextEditingController _emailController = TextEditingController();
 // final TextEditingController _passwordController = TextEditingController();
@@ -27,6 +30,8 @@ class RiverpodPractice extends ConsumerWidget {
       future: _initialization,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.done) {
+
+          FirebaseMessaging.instance.getToken().then((value) => print(' hoge token=$value'));
           return AuthScreen();
         }
         return Center(
@@ -144,11 +149,23 @@ class AuthScreen extends StatelessWidget {
     return StreamBuilder(
       stream: FirebaseAuth.instance.authStateChanges(),
       builder: (context, snapshot) {
+
+
         if (snapshot.connectionState == ConnectionState.waiting) {
           return Center(child: CircularProgressIndicator());
         }
 
         if (snapshot.hasData) {
+          FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+            print('hoge Got a message whilst in the foreground!');
+            print('hoge Message data: ${message.data}');
+
+            if (message.notification != null) {
+              print('hoge Message also contained a notification: ${message.notification}');
+            }
+          });
+
+
           context.read(firebaseProvider).reference = FirebaseFirestore.instance
               .collection('version')
               .doc('1')
